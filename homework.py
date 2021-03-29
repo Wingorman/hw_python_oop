@@ -4,7 +4,7 @@ from typing import Dict, Union, Tuple
 
 class Calculator:
 
-    def __init__(self, limit: float):
+    def __init__(self, limit: Union[str, float]):
         self.limit = limit
         self.records = []
         self.today = dt.date.today()
@@ -47,20 +47,21 @@ class CashCalculator(Calculator):
 
     # Определять, сколько ещё денег можно потратить сегодня
     # рублях, долларах или евро — метод get_today_cash_remained(currency)
-    def get_today_cash_remained(self, currency: str) -> str:
+    def get_today_cash_remained(self, currency):
+        self.currency = currency
         currencies: Dict[str, tuple[str, float]] = {
             'rub': ('руб', CashCalculator.RUB_RATE),
             'usd': ('USD', CashCalculator.USD_RATE),
             'eur': ('Euro', CashCalculator.EURO_RATE)}
-        cash_remained: Union[int, float] = self.get_today_limit_balance()
+        cash_remained: Union[str, float] = self.get_today_limit_balance()
         name, cash = currencies[currency]
-        if cash_remained > 0:
+        if currency not in currencies:
+            return f'Валюта {name} не поддерживается'
+        elif cash_remained > 0:
             return (f'На сегодня осталось '
                     f'{abs(round(cash_remained / cash, 2))} {name}')
         elif cash_remained == 0:
             return 'Денег нет, держись'
-        elif currency not in currencies:
-            return (f'Валюта {name} не поддерживается')
         else:
             return (f'Денег нет, держись: твой долг - '
                     f'{abs(round(cash_remained / cash, 2))} {name}')
@@ -80,9 +81,9 @@ class CaloriesCalculator(Calculator):
 
 class Record:
 
-    def __init__(self, amount: float, comment: str, date=None):
-        self.amount: float = amount
-        self.comment: str = comment
+    def __init__(self, amount, comment, date=None):
+        self.amount = amount
+        self.comment = comment
         if date is None:
             self.date = dt.date.today()
         else:
