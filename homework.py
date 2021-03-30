@@ -1,5 +1,15 @@
 import datetime as dt
-from typing import Dict, Union, Tuple
+from typing import Dict, Union, Optional
+
+
+class Record:
+    def __init__(self, amount, comment, date: Optional[str] = None):
+        self.amount = amount
+        self.comment = comment
+        if date is None:
+            self.date = dt.date.today()
+        else:
+            self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
 
 
 class Calculator:
@@ -12,32 +22,22 @@ class Calculator:
 
 # Метод add_record() в качестве аргумента принимает объект
 # класса Record и сохраняет его в списке records
-    def add_record(self, record: Tuple[float, str]):
+    def add_record(self, record: Record) -> None:
         self.records.append(record)
 
     def get_today_stats(self):
-        day_stats = 0
-# прошлись циклом по списку со статистикой, отфильтровав только записи
-# за указанный день и потом просуммировали, сложили в day_stats
-        for record in self.records:
-            if record.date == self.today:
-                day_stats += record.amount
-        return day_stats
+        return sum([record.amount for record in self.records
+                    if record.date == self.today])
 
         # Метод расчета оставшегося лимита за день
-    def get_today_limit_balance(self):
+    def get_today_limit_balance(self) -> float:
         return self.limit - self.get_today_stats()
 
         # Считать, сколько денег потрачено за последние 7 дней
         # Считать, сколько калорий получено за последние 7 дней
     def get_week_stats(self):
-        week_stats = []
-        # Прошлись циклом по списку со статистикой,
-        # с условием не больше недели, потом сумировали!
-        for record in self.records:
-            if self.week_ago <= record.date <= self.today:
-                week_stats.append(record.amount)
-        return sum(week_stats)
+        return sum([record.amount for record in self.records
+                    if self.week_ago <= record.date <= self.today])
 
 
 class CashCalculator(Calculator):
@@ -55,16 +55,17 @@ class CashCalculator(Calculator):
             'eur': ('Euro', CashCalculator.EURO_RATE)}
         cash_remained: Union[str, float] = self.get_today_limit_balance()
         name, cash = currencies[currency]
+        cash_stats = abs(round(cash_remained / cash, 2))
         if currency not in currencies:
-            return f'Валюта {name} не поддерживается'
-        elif cash_remained > 0:
-            return (f'На сегодня осталось '
-                    f'{abs(round(cash_remained / cash, 2))} {name}')
+            raise ValueError('Программа не работает с таким видом валюты')
         elif cash_remained == 0:
             return 'Денег нет, держись'
+        elif cash_remained > 0:
+            return (f'На сегодня осталось '
+                    f'{cash_stats} {name}')
         else:
             return (f'Денег нет, держись: твой долг - '
-                    f'{abs(round(cash_remained / cash, 2))} {name}')
+                    f'{cash_stats} {name}')
 
 
 class CaloriesCalculator(Calculator):
@@ -81,7 +82,7 @@ class CaloriesCalculator(Calculator):
 
 class Record:
 
-    def __init__(self, amount, comment, date=None):
+    def __init__(self, amount, comment, date: Optional[str] = None):
         self.amount = amount
         self.comment = comment
         if date is None:
