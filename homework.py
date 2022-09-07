@@ -1,91 +1,154 @@
-import datetime as dt
-from typing import Dict, Union, Optional
+from typing import List, Union
 
 
-class Record:
-    def __init__(self, amount, comment, date: Optional[str] = None):
-        self.amount = amount
-        self.comment = comment
-        if date is None:
-            self.date = dt.date.today()
-        else:
-            self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
+class InfoMessage:
+    """Информационное сообщение о тренировке."""
+
+    def __init__(self,
+                 training_type: str,
+                 duration: float,
+                 distance: float,
+                 speed: float,
+                 calories: float) -> None:
+        self.training_type = training_type
+        self.duration = duration
+        self.distance = distance
+        self.speed = speed
+        self.calories = calories
+
+    def get_message(self) -> str:
+        return (f'Тип тренировки: {self.training_type}; '
+                f'Длительность: {self.duration:.3f} ч.; '
+                f'Дистанция: {self.distance:.3f} км; '
+                f'Ср. скорость: {self.speed:.3f} км/ч; '
+                f'Потрачено ккал: {self.calories:.3f}.')
 
 
-class Calculator:
+class Training:
+    """Базовый класс тренировки."""
+    LEN_STEP = 0.65
+    M_IN_KM = 1000
+    HOUR_MIN = 60
 
-    def __init__(self, limit: Union[str, float]):
-        self.limit = limit
-        self.records = []
-        self.today = dt.date.today()
-        self.week_ago = self.today - dt.timedelta(days=7)
+    def __init__(self,
+                 action: int,
+                 duration: float,
+                 weight: float,
+                 ) -> None:
+        self.action = action
+        self.duration = duration
+        self.weight = weight
 
-# Метод add_record() в качестве аргумента принимает объект
-# класса Record и сохраняет его в списке records
-    def add_record(self, record: Record) -> None:
-        self.records.append(record)
+    def get_distance(self) -> float:
+        """Получить дистанцию в км."""
+        distance = self.action * self.LEN_STEP / self.M_IN_KM
+        return distance
 
-    def get_today_stats(self):
-        return sum([record.amount for record in self.records
-                    if record.date == self.today])
+    def get_mean_speed(self) -> float:
+        """Получить среднюю скорость движения."""
+        mean_speed = self.get_distance() / self.duration
+        return mean_speed
 
-        # Метод расчета оставшегося лимита за день
-    def get_today_limit_balance(self) -> float:
-        return self.limit - self.get_today_stats()
+    def get_spent_calories(self) -> float:
+        """Получить количество затраченных калорий."""
+        pass
 
-        # Считать, сколько денег потрачено за последние 7 дней
-        # Считать, сколько калорий получено за последние 7 дней
-    def get_week_stats(self):
-        return sum([record.amount for record in self.records
-                    if self.week_ago <= record.date <= self.today])
-
-
-class CashCalculator(Calculator):
-    RUB_RATE: float = 1
-    USD_RATE: float = 75.69
-    EURO_RATE: float = 89.19
-
-    # Определять, сколько ещё денег можно потратить сегодня
-    # рублях, долларах или евро — метод get_today_cash_remained(currency)
-    def get_today_cash_remained(self, currency):
-        self.currency = currency
-        currencies: Dict[str, tuple[str, float]] = {
-            'rub': ('руб', CashCalculator.RUB_RATE),
-            'usd': ('USD', CashCalculator.USD_RATE),
-            'eur': ('Euro', CashCalculator.EURO_RATE)}
-        cash_remained: Union[str, float] = self.get_today_limit_balance()
-        name, cash = currencies[currency]
-        cash_stats = abs(round(cash_remained / cash, 2))
-        if currency not in currencies:
-            raise ValueError('Программа не работает с таким видом валюты')
-        elif cash_remained == 0:
-            return 'Денег нет, держись'
-        elif cash_remained > 0:
-            return (f'На сегодня осталось '
-                    f'{cash_stats} {name}')
-        else:
-            return (f'Денег нет, держись: твой долг - '
-                    f'{cash_stats} {name}')
+    def show_training_info(self) -> InfoMessage:
+        """Вернуть информационное сообщение о выполненной тренировке."""
+        info_mes = InfoMessage(self.__class__.__name__,
+                               self.duration,
+                               self.get_distance(),
+                               self.get_mean_speed(),
+                               self.get_spent_calories())
+        return info_mes
 
 
-class CaloriesCalculator(Calculator):
-    # Определять, сколько ещё калорий можно/нужно получить сегодня
-    # — метод get_calories_remained()
-    def get_calories_remained(self):
-        calories_remained = self.get_today_limit_balance()
-        if calories_remained > 0:
-            return (f'Сегодня можно съесть что-нибудь ещё, но с общей '
-                    f'калорийностью не более {calories_remained} кКал')
-        else:
-            return 'Хватит есть!'
+class Running(Training):
+    """Тренировка: бег."""
+    COEFF_CALORIES_1 = 18
+    COEFF_CALORIES_2 = 20
+
+    def get_spent_calories(self) -> float:
+        """Получить количество затраченных калорий."""
+        spent_calories = ((self.COEFF_CALORIES_1 * self.get_mean_speed()
+                          - self.COEFF_CALORIES_2) * self.weight
+                          / self.M_IN_KM * self.duration * self.HOUR_MIN)
+        return spent_calories
 
 
-class Record:
+class SportsWalking(Training):
+    """Тренировка: спортивная ходьба."""
+    COEFF_CALORIES_3: float = 0.035
+    COEFF_CALORIES_4: float = 0.029
 
-    def __init__(self, amount, comment, date: Optional[str] = None):
-        self.amount = amount
-        self.comment = comment
-        if date is None:
-            self.date = dt.date.today()
-        else:
-            self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
+    def __init__(self,
+                 action: int,
+                 duration: float,
+                 weight: float,
+                 height: float) -> None:
+        super().__init__(action, duration, weight)
+        self.height = height
+
+    def get_spent_calories(self) -> float:
+        """Получить количество затраченных калорий."""
+        spent_calories = ((self.COEFF_CALORIES_3 * self.weight
+                          + (self.get_mean_speed() ** 2
+                           // self.height) * self.COEFF_CALORIES_4
+                           * self.weight) * self.duration * self.HOUR_MIN)
+        return spent_calories
+
+
+class Swimming(Training):
+    """Тренировка: плавание."""
+    LEN_STEP = 1.38
+    COEFF_CALORIES_5 = 1.1
+    COEFF_CALORIES_6 = 2
+
+    def __init__(self, action: int,
+                 duration: float,
+                 weight: float,
+                 length_pool: float,
+                 count_pool: float) -> None:
+        super().__init__(action, duration, weight)
+        self.length_pool = length_pool
+        self.count_pool = count_pool
+
+    def get_mean_speed(self) -> float:
+        """Получить среднюю скорость движения."""
+        mean_speed = (self.length_pool * self.count_pool
+                      / self.M_IN_KM / self.duration)
+        return mean_speed
+
+    def get_spent_calories(self) -> float:
+        """Получить количество затраченных калорий."""
+        spent_calories = ((self.get_mean_speed() + self.COEFF_CALORIES_5)
+                          * self.COEFF_CALORIES_6 * self.weight)
+        return spent_calories
+
+
+def read_package(workout_type: str, data: List[Union[int, float]]) -> Training:
+    """Прочитать данные полученные от датчиков."""
+    sport = {'SWM': Swimming,
+             'RUN': Running,
+             'WLK': SportsWalking}
+    if workout_type not in sport:
+        raise ValueError('Ошибка: такого ключа нет')
+    return sport[workout_type](*data)
+
+
+def main(training: Training) -> None:
+    """Главная функция."""
+    info = training.show_training_info()
+    print(info.get_message())
+
+
+if __name__ == '__main__':
+    packages = [
+        ('SWM', [720, 1, 80, 25, 40]),
+        ('RUN', [15000, 1, 75]),
+        ('WLK', [9000, 1, 75, 180]),
+    ]
+
+    for workout_type, data in packages:
+        training = read_package(workout_type, data)
+        main(training)
